@@ -1,0 +1,29 @@
+{
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:4000"
+  },
+  "platform": [ "darwin", "linux"],
+  "features": [
+    {
+      "code": "settings",
+      "explain": "Bitwarden 设置",
+      "cmds": [
+        "settings",
+        "bws",
+        "设置"
+      ]
+    },
+    {
+      "code": "pass",
+      "explain": "Bitwarden 列表",
+      "cmds": [
+        "pass",
+        "bwp",
+        "列表"
+      ]
+    }
+  ]
+}

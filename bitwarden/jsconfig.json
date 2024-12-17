@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "types": [
+      "utools-api-types"
+    ],
+    "lib": ["ES2015", "DOM"]  // 添加这一行
+  },
+  "include": [
+    "src/**/*.vue",
+    "src/**/*.js"
+  ]
+}
