@@ -8,33 +8,6 @@ interface CachedVaultItem extends VaultItem {
     iconError?: boolean
 }
 
-// 加密工具
-const useCrypto = () => {
-    const encrypt = (data: any): string => {
-        try {
-            // 使用 services 中的加密函数
-            return window.services.encrypt(data)
-        } catch (err) {
-            throw new Error('数据加密失败')
-        }
-    }
-    
-    const decrypt = (encryptedData: string): any => {
-        try {
-            // 使用 services 中的解密函数
-            const decrypted = window.services.decrypt(encryptedData)
-            if (decrypted === null) {
-                throw new Error('解密失败')
-            }
-            return decrypted
-        } catch (err) {
-            throw new Error('数据解密失败')
-        }
-    }
-    
-    return { encrypt, decrypt }
-}
-
 // 状态管理
 const items = ref<CachedVaultItem[]>([])
 const searchText = ref('')
@@ -111,39 +84,33 @@ const useIcon = () => {
 const useCache = () => {
     const CACHE_KEY = 'bitwarden-vault-items'
     const CACHE_VERSION = 'v2'
-    const { encrypt, decrypt } = useCrypto()
 
     const loadFromCache = () => {
         const cacheVersion = window.utools.dbStorage.getItem('bitwarden-cache-version')
         if (cacheVersion !== CACHE_VERSION) {
-            window.utools.dbStorage.removeItem(CACHE_KEY)
             window.utools.dbStorage.setItem('bitwarden-cache-version', CACHE_VERSION)
             return false
         }
 
-        const encryptedData = window.utools.dbStorage.getItem(CACHE_KEY)
-        if (!encryptedData) return false
-
         try {
-            const decryptedData = decrypt(encryptedData)
-            if (!decryptedData || !Array.isArray(decryptedData)) {
-                throw new Error('缓存数据格式错误')
+            const data = window.utools.dbCryptoStorage.getItem(CACHE_KEY)
+            if (!data || !Array.isArray(data)) {
+                return false
             }
-            items.value = decryptedData as CachedVaultItem[]
+            items.value = data as CachedVaultItem[]
             return true
         } catch (err) {
-            window.utools.dbStorage.removeItem(CACHE_KEY)
+            window.utools.dbCryptoStorage.removeItem(CACHE_KEY)
             return false
         }
     }
 
     const saveToCache = (data: CachedVaultItem[]) => {
         try {
-            const encryptedData = encrypt(data)
-            window.utools.dbStorage.setItem(CACHE_KEY, encryptedData)
+            window.utools.dbCryptoStorage.setItem(CACHE_KEY, data)
             window.utools.dbStorage.setItem('bitwarden-cache-version', CACHE_VERSION)
         } catch (err) {
-            window.utools.dbStorage.removeItem(CACHE_KEY)
+            window.utools.dbCryptoStorage.removeItem(CACHE_KEY)
         }
     }
 

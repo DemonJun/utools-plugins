@@ -6,23 +6,23 @@
     "main": "http://localhost:4000"
   },
   "platform": [ "darwin", "linux"],
+  "homepage": "https://github.com/DemonJun/utools-plugins",
   "features": [
     {
       "code": "settings",
       "explain": "Bitwarden 设置",
       "cmds": [
-        "settings",
-        "bws",
-        "设置"
+        "设置",
+        "bws"
       ]
     },
     {
       "code": "pass",
-      "explain": "Bitwarden 列表",
+      "explain": "Bitwarden 密码列表",
       "cmds": [
+        "密码",
         "pass",
-        "bwp",
-        "列表"
+        "bwp"
       ]
     }
   ]

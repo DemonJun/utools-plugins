@@ -1,16 +1,13 @@
 // 非 Windows 系统添加额外的 PATH
 !utools.isWindows() && (process.env.PATH += ':/usr/local/bin:/usr/local/sbin:/opt/homebrew/bin')
 
-const crypto = require('crypto')
 const { exec } = require('child_process')
 const util = require('util')
 const execAsync = util.promisify(exec)
 
 // 常量定义
 const CONSTANTS = {
-  ENCRYPTION_KEY: 'bitwarden-plugin-',
   CACHE_KEYS: {
-    ENCRYPTION: 'encryption-key',
     SESSION: 'bitwarden-session',
     SETTINGS: 'bitwarden-settings'
   },
@@ -43,54 +40,6 @@ const CONSTANTS = {
   }
 }
 
-// 加密密钥（使用固定的密钥加上 uTools 的 UUID）
-const getEncryptionKey = () => {
-  let key = window.utools.dbStorage.getItem(CONSTANTS.CACHE_KEYS.ENCRYPTION)
-  if (!key) {
-    key = CONSTANTS.ENCRYPTION_KEY + window.utools.getNativeId()
-    window.utools.dbStorage.setItem(CONSTANTS.CACHE_KEYS.ENCRYPTION, key)
-  }
-  return key
-}
-
-// 存储工具
-const storage = {
-  get: (key) => window.utools.dbStorage.getItem(key),
-  set: (key, value) => window.utools.dbStorage.setItem(key, value),
-  remove: (key) => window.utools.dbStorage.removeItem(key)
-}
-
-// 加密工具
-const cryptoUtils = {
-  encrypt: (data) => {
-    const algorithm = 'aes-256-cbc'
-    const key = crypto.scryptSync(getEncryptionKey(), 'salt', 32)
-    const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipheriv(algorithm, key, iv)
-    const jsonStr = JSON.stringify(data)
-    let encrypted = cipher.update(jsonStr, 'utf8', 'base64')
-    encrypted += cipher.final('base64')
-    return JSON.stringify({
-      iv: iv.toString('base64'),
-      content: encrypted
-    })
-  },
-
-  decrypt: (ciphertext) => {
-    try {
-      const algorithm = 'aes-256-cbc'
-      const key = crypto.scryptSync(getEncryptionKey(), 'salt', 32)
-      const { iv, content } = JSON.parse(ciphertext)
-      const decipher = crypto.createDecipheriv(algorithm, key, Buffer.from(iv, 'base64'))
-      let decrypted = decipher.update(content, 'base64', 'utf8')
-      decrypted += decipher.final('utf8')
-      return JSON.parse(decrypted)
-    } catch {
-      return null
-    }
-  }
-}
-
 // 执行 bw 命令
 const execBWCommand = async (command, env = {}) => {
   try {
@@ -110,12 +59,9 @@ const execBWCommand = async (command, env = {}) => {
 // 从 uTools 存储加载会话缓存
 const loadSessionCache = () => {
   try {
-    const encryptedCache = window.utools.dbStorage.getItem('bitwarden-session')
-    if (encryptedCache) {
-      const cache = cryptoUtils.decrypt(encryptedCache)
-      if (cache && cache.expires_at && Date.now() < cache.expires_at) {
-        return cache
-      }
+    const cache = window.utools.dbCryptoStorage.getItem(CONSTANTS.CACHE_KEYS.SESSION)
+    if (cache && cache.expires_at && Date.now() < cache.expires_at) {
+      return cache
     }
   } catch (error) {
   }
@@ -129,8 +75,7 @@ const loadSessionCache = () => {
 // 保存会话缓存到 uTools 存储
 const saveSessionCache = (cache) => {
   try {
-    const encryptedCache = cryptoUtils.encrypt(cache)
-    window.utools.dbStorage.setItem('bitwarden-session', encryptedCache)
+    window.utools.dbCryptoStorage.setItem(CONSTANTS.CACHE_KEYS.SESSION, cache)
   } catch (error) {
   }
 }
@@ -146,7 +91,7 @@ const clearSessionCache = () => {
     serverUrl: null
   }
   try {
-    window.utools.dbStorage.removeItem('bitwarden-session')
+    window.utools.dbCryptoStorage.removeItem(CONSTANTS.CACHE_KEYS.SESSION)
   } catch (error) {
   }
 }
@@ -317,10 +262,7 @@ const updateVaultItemsInBackground = async (settings) => {
 
 // 通过 window 对象向渲染进程注入 nodejs 能力
 window.services = {
-  encrypt: cryptoUtils.encrypt,
-  decrypt: cryptoUtils.decrypt,
-
-  // 获取当前主题
+  // 移除不需要的加解密方法
   getTheme() {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     return isDark ? CONSTANTS.THEMES.DARK : CONSTANTS.THEMES.LIGHT
@@ -328,14 +270,9 @@ window.services = {
 
   loadSettings() {
     try {
-      const encryptedSettings = storage.get(CONSTANTS.CACHE_KEYS.SETTINGS)
-      if (encryptedSettings) {
-        const settings = cryptoUtils.decrypt(encryptedSettings)
-        if (settings) {
-          return settings
-        }
-      }
-      return {
+      // 直接从 dbCryptoStorage 中获取设置
+      const settings = window.utools.dbCryptoStorage.getItem(CONSTANTS.CACHE_KEYS.SETTINGS)
+      return settings || {
         clientId: '',
         clientSecret: '',
         serverUrl: '',
@@ -348,6 +285,34 @@ window.services = {
         clientSecret: '',
         serverUrl: '',
         masterPassword: ''
+      }
+    }
+  },
+
+  // 保存设置
+  async saveSettings(settings) {
+    try {
+      clearSessionCache()
+      clearVaultCache()
+
+      // 确保设置对象的所有字段都存在
+      const settingsToSave = {
+        clientId: settings.clientId || '',
+        clientSecret: settings.clientSecret || '',
+        serverUrl: settings.serverUrl || '',
+        masterPassword: settings.masterPassword || ''
+      }
+
+      window.utools.dbCryptoStorage.setItem(CONSTANTS.CACHE_KEYS.SETTINGS, settingsToSave)
+      
+      return {
+        success: true,
+        message: '保存成功'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message
       }
     }
   },
@@ -376,27 +341,6 @@ window.services = {
       return {
         success: false,
         message: errorMessage
-      }
-    }
-  },
-
-  // 保存设置
-  async saveSettings(settings) {
-    try {
-      clearSessionCache()
-      clearVaultCache()
-
-      const encryptedSettings = cryptoUtils.encrypt(settings)
-      window.utools.dbStorage.setItem('bitwarden-settings', encryptedSettings)
-      
-      return {
-        success: true,
-        message: '保存成功'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message
       }
     }
   },

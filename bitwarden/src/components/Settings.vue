@@ -15,43 +15,44 @@ const settings = ref({
     masterPassword: ''
 })
 
-const errors = ref({
-    clientId: '',
-    clientSecret: '',
-    serverUrl: '',
-    masterPassword: ''
-})
-
+const errorMessage = ref('')
+const showError = ref(false)
 const showPassword = ref(false)
 const isSaving = ref(false)
 const statusMessage = ref('')
+const showStatus = ref(false)
 const statusType = ref('success')
+
+// 显示通知
+const showNotification = (message: string, type: 'success' | 'error') => {
+    statusMessage.value = message
+    statusType.value = type
+    showStatus.value = true
+    setTimeout(() => {
+        showStatus.value = false
+    }, 3000)
+}
 
 // 验证表单
 const validateForm = () => {
     let isValid = true
-    errors.value = {
-        clientId: '',
-        clientSecret: '',
-        serverUrl: '',
-        masterPassword: ''
-    }
+    let errors = []
 
     // 验证 Client ID
     if (!settings.value.clientId.trim()) {
-        errors.value.clientId = 'Client ID 不能为空'
+        errors.push('Client ID 不能为空')
         isValid = false
     } 
     
     // 验证 Client Secret
     if (!settings.value.clientSecret.trim()) {
-        errors.value.clientSecret = 'Client Secret 不能为空'
+        errors.push('Client Secret 不能为空')
         isValid = false
     }
 
     // 验证主密码
     if (!settings.value.masterPassword.trim()) {
-        errors.value.masterPassword = '主密码不能为空'
+        errors.push('主密码不能为空')
         isValid = false
     }
 
@@ -60,9 +61,17 @@ const validateForm = () => {
         try {
             new URL(settings.value.serverUrl)
         } catch {
-            errors.value.serverUrl = '请输入有效的服务器地址'
+            errors.push('请输入有效的服务器地址')
             isValid = false
         }
+    }
+
+    if (!isValid) {
+        errorMessage.value = errors.join('，')
+        showError.value = true
+        setTimeout(() => {
+            showError.value = false
+        }, 3000)
     }
 
     return isValid
@@ -74,17 +83,12 @@ const saveSettings = async () => {
         return
     }
 
-    console.log('开始保存设置...')
     isSaving.value = true
     try {
-        console.log('调用 saveSettings:', settings.value)
         await window.services.saveSettings(settings.value)
-        statusMessage.value = '保存成功'
-        statusType.value = 'success'
+        showNotification('保存成功', 'success')
     } catch (error) {
-        console.error('保存设置出错:', error)
-        statusMessage.value = '保存失败：' + error.message
-        statusType.value = 'error'
+        showNotification('保存失败：' + error.message, 'error')
     } finally {
         isSaving.value = false
     }
@@ -103,26 +107,30 @@ onMounted(() => {
 <template>
     <div class="page-container">
         <div class="settings-container">
+            <div v-if="showError" class="notification error">
+                {{ errorMessage }}
+            </div>
+            <div v-if="showStatus" class="notification" :class="statusType">
+                {{ statusMessage }}
+            </div>
             <div class="settings-form">
                 <div class="form-item">
                     <label>服务器地址:</label>
                     <input 
                         v-model="settings.serverUrl" 
                         placeholder="可选，默认使用 Bitwarden 官方服务器"
-                        :class="{ 'error': errors.serverUrl }"
+                        :class="{ 'error': showError && errorMessage.includes('服务器地址') }"
                         :disabled="isSaving"
                     >
-                    <span class="error-message" v-if="errors.serverUrl">{{ errors.serverUrl }}</span>
                 </div>
                 <div class="form-item">
                     <label>Client ID:</label>
                     <input 
                         v-model="settings.clientId" 
                         placeholder="请输入 API Client ID"
-                        :class="{ 'error': errors.clientId }"
+                        :class="{ 'error': showError && errorMessage.includes('Client ID') }"
                         :disabled="isSaving"
                     >
-                    <span class="error-message" v-if="errors.clientId">{{ errors.clientId }}</span>
                 </div>
                 <div class="form-item">
                     <label>Client Secret:</label>
@@ -131,7 +139,7 @@ onMounted(() => {
                             v-model="settings.clientSecret" 
                             :type="showPassword ? 'text' : 'password'" 
                             placeholder="请输入 API Client Secret"
-                            :class="{ 'error': errors.clientSecret }"
+                            :class="{ 'error': showError && errorMessage.includes('Client Secret') }"
                             :disabled="isSaving"
                         >
                         <button 
@@ -148,7 +156,6 @@ onMounted(() => {
                             >
                         </button>
                     </div>
-                    <span class="error-message" v-if="errors.clientSecret">{{ errors.clientSecret }}</span>
                 </div>
                 <div class="form-item">
                     <label>主密码:</label>
@@ -157,7 +164,7 @@ onMounted(() => {
                             v-model="settings.masterPassword" 
                             :type="showPassword ? 'text' : 'password'" 
                             placeholder="请输入主密码"
-                            :class="{ 'error': errors.masterPassword }"
+                            :class="{ 'error': showError && errorMessage.includes('主密码') }"
                             :disabled="isSaving"
                         >
                         <button 
@@ -174,7 +181,6 @@ onMounted(() => {
                             >
                         </button>
                     </div>
-                    <span class="error-message" v-if="errors.masterPassword">{{ errors.masterPassword }}</span>
                 </div>
                 <button 
                     class="save-btn" 
@@ -183,9 +189,6 @@ onMounted(() => {
                 >
                     {{ isSaving ? '保存中...' : '保存设置' }}
                 </button>
-                <div v-if="statusMessage" :class="['status-message', statusType]">
-                    {{ statusMessage }}
-                </div>
             </div>
         </div>
     </div>
@@ -197,28 +200,38 @@ onMounted(() => {
     display: none;
 }
 
-.status-message {
-    margin-top: 10px;
-    padding: 8px;
-    border-radius: 4px;
-    text-align: center;
+.notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 6px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease-out;
 }
 
-.status-message.success {
+.notification.error {
+    background-color: var(--error-background);
+    color: var(--error-color);
+}
+
+.notification.success {
     background-color: var(--item-background);
     color: var(--text-color);
     border: 1px solid var(--border-color);
 }
 
-.status-message.error {
-    background-color: var(--error-background);
-    color: var(--error-color);
-}
-
-.error-message {
-    color: var(--error-color);
-    font-size: 12px;
-    margin-top: 4px;
+@keyframes slideIn {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }
 </style>
 

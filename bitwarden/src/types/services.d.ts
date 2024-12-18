@@ -40,8 +40,6 @@ interface Theme {
 }
 
 export interface BitwardenServices {
-  encrypt: (data: any) => string;
-  decrypt: (encryptedData: string) => any;
   loadSettings: () => BitwardenSettings;
   saveSettings: (settings: BitwardenSettings) => Promise<SaveSettingsResult>;
   getVaultItems: () => Promise<VaultItem[]>;
