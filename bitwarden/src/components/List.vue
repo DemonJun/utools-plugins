@@ -255,38 +255,14 @@ const { filteredItems } = useSearch()
 const { handleImageError } = useIcon()
 const { setupUToolsListener, copyToClipboard } = useUTools()
 
-// 主题相关
-const theme = ref(window.services.getTheme())
-
-// 监听系统主题变化
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-const handleThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
-    theme.value = window.services.getTheme()
-}
-
 onMounted(() => {
     setupUToolsListener()
     loadVaultItems()
-    mediaQuery.addListener(handleThemeChange)
-})
-
-onUnmounted(() => {
-    mediaQuery.removeListener(handleThemeChange)
 })
 </script>
 
 <template>
-    <div class="list-container" :style="{
-        '--background-color': theme.background,
-        '--text-color': theme.textColor,
-        '--text-secondary': theme.textSecondary,
-        '--border-color': theme.borderColor,
-        '--item-background': theme.itemBackground,
-        '--error-background': theme.errorBackground,
-        '--error-color': theme.errorColor,
-        '--loading-color': theme.loadingColor,
-        '--hover-background': theme.hoverBackground
-    }">
+    <div class="list-container">
         <div class="progress-bar" :class="{ active: isBackgroundUpdating }"></div>
         <div v-if="error" class="error-message">
             {{ error }}

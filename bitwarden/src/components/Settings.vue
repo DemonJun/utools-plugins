@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { BitwardenServices } from '../types/services'
 
 declare global {
@@ -15,8 +15,6 @@ const settings = ref({
     masterPassword: ''
 })
 
-const theme = ref(window.services.getTheme())
-
 const errors = ref({
     clientId: '',
     clientSecret: '',
@@ -28,12 +26,6 @@ const showPassword = ref(false)
 const isSaving = ref(false)
 const statusMessage = ref('')
 const statusType = ref('success')
-
-// 监听系统主题变化
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-const handleThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
-  theme.value = window.services.getTheme()
-}
 
 // 验证表单
 const validateForm = () => {
@@ -105,26 +97,11 @@ const loadSettings = () => {
 
 onMounted(() => {
     loadSettings()
-    mediaQuery.addListener(handleThemeChange)
-})
-
-onUnmounted(() => {
-  mediaQuery.removeListener(handleThemeChange)
 })
 </script>
 
 <template>
-    <div class="page-container" :style="{
-        '--background-color': theme.background,
-        '--text-color': theme.textColor,
-        '--text-secondary': theme.textSecondary,
-        '--border-color': theme.borderColor,
-        '--item-background': theme.itemBackground,
-        '--error-background': theme.errorBackground,
-        '--error-color': theme.errorColor,
-        '--loading-color': theme.loadingColor,
-        '--hover-background': theme.hoverBackground
-    }">
+    <div class="page-container">
         <div class="settings-container">
             <div class="settings-form">
                 <div class="form-item">
