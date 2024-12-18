@@ -153,12 +153,7 @@ const useCache = () => {
 // uTools 相关功能
 const useUTools = () => {
     const setupUToolsListener = () => {
-        window.utools.onPluginEnter(({ type, payload }) => {
-            updateInBackground()
-            if (type === 'over') {
-                searchText.value = String(payload)
-            }
-        })
+        updateInBackground()
 
         window.utools.removeSubInput()
         window.utools.setSubInput(({ text }) => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, watch } from 'vue'
 import Settings from './components/Settings.vue'
 import Pass from './components/Pass.vue'
 
@@ -51,19 +51,20 @@ const theme = ref<Theme>(window.services.getTheme())
 onMounted(() => {
     // 初始化主题
     theme.value = window.services.getTheme()
-    
+
     // 注册插件进入事件，处理路由
     window.utools.onPluginEnter((action) => {
         route.value = action.code
         enterAction.value = action
         theme.value = window.services.getTheme()
     })
-    
+
     // 注册插件退出事件
     window.utools.onPluginOut(() => {
         route.value = ''
     })
 })
+
 
 // 提供主题给所有子组件
 provide('theme', theme)
@@ -84,8 +85,8 @@ provide('enterAction', enterAction)
         '--loading-color': theme.loadingColor,
         '--hover-background': theme.hoverBackground
     }">
-        <Settings v-if="route === 'settings'" />
-        <Pass v-if="route === 'pass'" />
+        <Settings v-if="route === 'settings'" :key="route" />
+        <Pass v-if="route === 'pass'" :key="route" />
     </div>
 </template>
 
@@ -115,8 +116,8 @@ provide('enterAction', enterAction)
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-height: calc(100vh - 88px); /* 减去上下margin和padding */
+    max-height: calc(100vh - 88px);
+    /* 减去上下margin和padding */
     overflow: hidden;
 }
 </style>
-
