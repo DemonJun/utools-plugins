@@ -5,7 +5,6 @@
   "development": {
     "main": "http://localhost:4000"
   },
-  "platform": [ "darwin", "linux"],
   "homepage": "https://github.com/DemonJun/utools-plugins",
   "features": [
     {
